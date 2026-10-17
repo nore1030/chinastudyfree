@@ -1,0 +1,132 @@
+{
+  "$comment": "跨端经济黄金测试向量（Wave B 单一事实源）。TS 端由 packages/core/src/__tests__/goldenVectors.test.ts 消费；Swift 端需读取同一份文件跑等价断言。任何数值改动必须双端同步。",
+  "version": 1,
+  "stars": [
+    { "accuracy": 0.749, "expStars": 1 },
+    { "accuracy": 0.75, "expStars": 1 },
+    { "accuracy": 0.799, "expStars": 1 },
+    { "accuracy": 0.8, "expStars": 2 },
+    { "accuracy": 0.949, "expStars": 2 },
+    { "accuracy": 0.95, "expStars": 3 },
+    { "accuracy": 1.0, "expStars": 3 }
+  ],
+  "xp": [
+    { "correctCount": 8, "perfect": false, "firstPerfect": false, "isWeekend": false, "expXp": 80 },
+    { "correctCount": 10, "perfect": true, "firstPerfect": false, "isWeekend": false, "expXp": 105 },
+    { "correctCount": 10, "perfect": true, "firstPerfect": true, "isWeekend": false, "expXp": 110 },
+    { "correctCount": 10, "perfect": true, "firstPerfect": true, "isWeekend": true, "expXp": 220 },
+    { "correctCount": 5, "perfect": false, "firstPerfect": false, "isWeekend": true, "expXp": 100 },
+    { "correctCount": 0, "perfect": false, "firstPerfect": false, "isWeekend": true, "expXp": 0 },
+    { "correctCount": 7, "perfect": false, "firstPerfect": true, "isWeekend": false, "expXp": 75 }
+  ],
+  "gemDrip": [
+    { "stars": 1, "isFirstPerfect": false, "crossedDailyGoal": false, "expGems": 3 },
+    { "stars": 2, "isFirstPerfect": false, "crossedDailyGoal": false, "expGems": 8 },
+    { "stars": 3, "isFirstPerfect": false, "crossedDailyGoal": false, "expGems": 13 },
+    { "stars": 3, "isFirstPerfect": true, "crossedDailyGoal": false, "expGems": 28 },
+    { "stars": 3, "isFirstPerfect": true, "crossedDailyGoal": true, "expGems": 48 },
+    { "stars": 1, "isFirstPerfect": false, "crossedDailyGoal": true, "expGems": 23 }
+  ],
+  "streakAdvance": [
+    { "$case": "同日重复学习", "streak": 5, "freezes": 2, "gapDays": 0, "isMonday": false, "expStreak": 5, "expFreezes": 2, "expConsumed": 0 },
+    { "$case": "gap1 正常连续", "streak": 5, "freezes": 1, "gapDays": 1, "isMonday": false, "expStreak": 6, "expFreezes": 1, "expConsumed": 0 },
+    { "$case": "gap1 周一补给 +1", "streak": 5, "freezes": 1, "gapDays": 1, "isMonday": true, "expStreak": 6, "expFreezes": 2, "expConsumed": 0 },
+    { "$case": "gap1 周一但护盾已满，封顶 2", "streak": 5, "freezes": 2, "gapDays": 1, "isMonday": true, "expStreak": 6, "expFreezes": 2, "expConsumed": 0 },
+    { "$case": "gap2 消耗 1 护盾续命", "streak": 10, "freezes": 2, "gapDays": 2, "isMonday": false, "expStreak": 11, "expFreezes": 1, "expConsumed": 1 },
+    { "$case": "gap3 消耗 2 护盾续命", "streak": 10, "freezes": 2, "gapDays": 3, "isMonday": false, "expStreak": 11, "expFreezes": 0, "expConsumed": 2 },
+    { "$case": "gap3 护盾不足，连胜归 1，护盾保留", "streak": 10, "freezes": 1, "gapDays": 3, "isMonday": false, "expStreak": 1, "expFreezes": 1, "expConsumed": 0 },
+    { "$case": "时钟回拨（负 gap），一切不变", "streak": 7, "freezes": 1, "gapDays": -1, "isMonday": false, "expStreak": 7, "expFreezes": 1, "expConsumed": 0 }
+  ],
+  "srsReview": [
+    { "box": 1, "isCorrect": true, "expBox": 2, "expIntervalDays": 1 },
+    { "box": 2, "isCorrect": true, "expBox": 3, "expIntervalDays": 3 },
+    { "box": 3, "isCorrect": true, "expBox": 3, "expIntervalDays": 7 },
+    { "box": 2, "isCorrect": false, "expBox": 1, "expIntervalDays": 0 },
+    { "box": 3, "isCorrect": false, "expBox": 1, "expIntervalDays": 0 }
+  ],
+  "$srsGraduationComment": "毕业判定 = graduated === true || (box ?? 1) >= 3 && (correctCount ?? 0) >= 2。null 表示该字段缺失（老档 / 另一端导入）。due 队列过滤两端都必须用这个判定，不能只认显式 graduated 标记。",
+  "srsGraduation": [
+    { "$case": "显式标记优先，box/次数不达标也算毕业", "graduated": true, "box": 1, "correctCount": 0, "expGraduated": true },
+    { "$case": "graduated=false 但 box3+答对2，派生判定仍毕业", "graduated": false, "box": 3, "correctCount": 2, "expGraduated": true },
+    { "$case": "无 graduated 字段，box3+答对2 → 毕业", "graduated": null, "box": 3, "correctCount": 2, "expGraduated": true },
+    { "$case": "box3+答对3 → 毕业", "graduated": null, "box": 3, "correctCount": 3, "expGraduated": true },
+    { "$case": "box3 但只答对 1 → 未毕业", "graduated": null, "box": 3, "correctCount": 1, "expGraduated": false },
+    { "$case": "box3 缺 correctCount（按 0）→ 未毕业", "graduated": null, "box": 3, "correctCount": null, "expGraduated": false },
+    { "$case": "box2 即使答对很多次 → 未毕业", "graduated": null, "box": 2, "correctCount": 5, "expGraduated": false },
+    { "$case": "缺 box（按 1）+ 答对 5 → 未毕业", "graduated": null, "box": null, "correctCount": 5, "expGraduated": false },
+    { "$case": "全缺字段的新错题 → 未毕业", "graduated": null, "box": null, "correctCount": null, "expGraduated": false },
+    { "$case": "graduated=false + box1 → 未毕业", "graduated": false, "box": 1, "correctCount": 0, "expGraduated": false }
+  ],
+  "dailyReward": [
+    { "streak": 0, "expGems": 5 },
+    { "streak": 1, "expGems": 5 },
+    { "streak": 3, "expGems": 12 },
+    { "streak": 7, "expGems": 30 },
+    { "streak": 30, "expGems": 30 }
+  ],
+  "milestone": [
+    { "streakAfter": 3, "expGems": 30 },
+    { "streakAfter": 7, "expGems": 80 },
+    { "streakAfter": 14, "expGems": 150 },
+    { "streakAfter": 100, "expGems": 800 },
+    { "streakAfter": 101, "expGems": 0 }
+  ],
+  "quests": [
+    {
+      "date": "2026-01-01",
+      "expQuests": [
+        { "kind": "earnXP", "target": 60, "reward": 15, "id": "earnXP-60" },
+        { "kind": "reviewMistakes", "target": 3, "reward": 20, "id": "reviewMistakes-3" },
+        { "kind": "finishLessons", "target": 2, "reward": 20, "id": "finishLessons-2" }
+      ]
+    },
+    {
+      "date": "2026-08-25",
+      "expQuests": [
+        { "kind": "earnXP", "target": 30, "reward": 10, "id": "earnXP-30" },
+        { "kind": "finishLessons", "target": 1, "reward": 10, "id": "finishLessons-1" },
+        { "kind": "readTexts", "target": 1, "reward": 15, "id": "readTexts-1" }
+      ]
+    },
+    {
+      "date": "2026-12-31",
+      "expQuests": [
+        { "kind": "earnXP", "target": 100, "reward": 25, "id": "earnXP-100" },
+        { "kind": "reviewMistakes", "target": 1, "reward": 10, "id": "reviewMistakes-1" },
+        { "kind": "readTexts", "target": 1, "reward": 15, "id": "readTexts-1" }
+      ]
+    }
+  ],
+  "examXp": [
+    { "$case": "普通课不受影响", "correctCount": 8, "perfect": false, "firstPerfect": false, "isWeekend": false, "isExam": false, "expXp": 80 },
+    { "$case": "单元挑战 ×2", "correctCount": 8, "perfect": false, "firstPerfect": false, "isWeekend": false, "isExam": true, "expXp": 160 },
+    { "$case": "单元挑战 + 周末叠加 ×4", "correctCount": 8, "perfect": false, "firstPerfect": false, "isWeekend": true, "isExam": true, "expXp": 320 },
+    { "$case": "单元挑战 + 零失误 + 首次三星", "correctCount": 10, "perfect": true, "firstPerfect": true, "isWeekend": false, "isExam": true, "expXp": 220 }
+  ],
+  "league": {
+    "$comment": "固定 weekKey/tier/salt 下的确定性对照：names 为 15 个 bot 的完整名单（顺序即 botIndex 0..14，必须逐字一致且组内去重）；bots 为 3 个 bot 在 周三 12:00（本地 2026-08-26T12:00）与 周日 23:59（本地 2026-08-30T23:59）的累计 XP 及周目标。",
+    "weekKey": "2026-08-24",
+    "tier": "gold",
+    "salt": "golden-salt",
+    "names": ["考拉抱抱", "兔子朵朵", "雪人白白", "月亮弯弯", "星星闪闪", "仓鼠豆豆", "企鹅冰冰", "青蛙呱呱", "鹦鹉花花", "蜗牛慢慢", "浣熊乐乐", "小猫咪咪", "小老虎威威", "彩虹七七", "狐狸悠悠"],
+    "bots": [
+      { "botIndex": 0, "expName": "考拉抱抱", "expGoal": 556, "expXpWednesdayNoon": 153, "expXpSundayNight": 556 },
+      { "botIndex": 1, "expName": "兔子朵朵", "expGoal": 223, "expXpWednesdayNoon": 95, "expXpSundayNight": 223 },
+      { "botIndex": 2, "expName": "雪人白白", "expGoal": 351, "expXpWednesdayNoon": 51, "expXpSundayNight": 351 }
+    ]
+  },
+  "chestSlot": [
+    { "lessonsCompletedInUnit": 1, "expChests": 0 },
+    { "lessonsCompletedInUnit": 2, "expChests": 0 },
+    { "lessonsCompletedInUnit": 3, "expChests": 0 },
+    { "lessonsCompletedInUnit": 4, "expChests": 0 },
+    { "lessonsCompletedInUnit": 5, "expChests": 1 },
+    { "lessonsCompletedInUnit": 6, "expChests": 1 },
+    { "lessonsCompletedInUnit": 7, "expChests": 1 },
+    { "lessonsCompletedInUnit": 8, "expChests": 1 },
+    { "lessonsCompletedInUnit": 9, "expChests": 1 },
+    { "lessonsCompletedInUnit": 10, "expChests": 2 },
+    { "lessonsCompletedInUnit": 11, "expChests": 2 },
+    { "lessonsCompletedInUnit": 12, "expChests": 2 }
+  ]
+}

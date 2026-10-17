@@ -1,0 +1,34 @@
+{
+  "name": "china-study-free-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ChinaStudyFree 多端适配工程：Web(Next.js 静态导出) + 桌面(Tauri) + 安卓/iOS(Capacitor) + Docker，统一在线 AI 后端(apps/server)。",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:data": "npm run build:data --workspace=china-study-free",
+    "build:web": "npm run build --workspace=china-study-free",
+    "build:server": "npm run build --workspace=china-study-free-server",
+    "dev:web": "npm run dev --workspace=china-study-free",
+    "dev:server": "npm run dev --workspace=china-study-free-server",
+    "type-check": "npm run type-check --workspaces --if-present",
+    "download-assets": "bash scripts/download-assets.sh",
+    "sync:textbooks": "node scripts/sync-textbooks.mjs",
+    "gen:content": "node scripts/gen-stage-content.mjs && node scripts/gen-version-content.mjs && node scripts/gen-coverage-content.mjs",
+    "gen:version": "node scripts/gen-version-content.mjs",
+    "gen:coverage": "node scripts/gen-coverage-content.mjs",
+    "coverage": "node scripts/coverage-report.mjs",
+    "validate:quizzes": "node scripts/validate-quizzes.mjs",
+    "tts:audio": "node scripts/tts/generate-audio.mjs",
+    "tts:audio:dry": "node scripts/tts/generate-audio.mjs --dry-run",
+    "package:offline": "bash scripts/package-offline.sh",
+    "sync:android": "npx @capacitor/cli sync android",
+    "sync:ios": "npx @capacitor/cli sync ios",
+    "icons:android": "python scripts/gen-android-icons.py"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

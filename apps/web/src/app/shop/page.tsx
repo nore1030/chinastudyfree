@@ -1,0 +1,800 @@
+"use client";
+
+/**
+ * 美妆商店 —— 用 gems 解锁吉祥物皮肤 / UI 主题 / 课程背景
+ *
+ * 公益项目约束：
+ *   - 所有道具都能通过游戏内 gems 解锁
+ *   - 没有"premium 限定"或"充值专属"
+ *   - 不影响游戏数值，纯美学
+ *
+ * 桌面布局（lg+）：
+ *   左侧粘性大预览（Mascot / 主题样卡 / 背景全屏） + 右侧道具网格
+ * 移动端：
+ *   顶部紧凑预览 + 下方道具网格
+ */
+
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/Toast";
+import { Sparkle } from "@/components/icons";
+import {
+  MASCOT_SKINS,
+  UI_THEMES,
+  LESSON_BACKDROPS,
+  RARITY_COLORS,
+  RARITY_LABELS,
+  type CosmeticItem,
+  type LessonBackdrop,
+  type UiTheme,
+} from "@/lib/cosmetics";
+import { useProgressStore, MAX_HEARTS } from "@/store/progress";
+import {
+  FREEZE_COST,
+  MAX_FREEZES,
+  HEART_REFILL_COST,
+} from "@cstf/core/economy";
+import { Mascot } from "@/components/Mascot";
+import {
+  Gem,
+  ArrowLeft,
+  Check,
+  Lock,
+  Panda,
+  Palette,
+  Picture,
+  Snowflake,
+  Heart,
+} from "@/components/icons";
+import { GemBadge } from "@/components/GemBadge";
+import { AppShell } from "@/components/layout/AppShell";
+import { playSfx } from "@/lib/sfx";
+import { haptic } from "@/lib/haptic";
+
+type Tab = "mascot_skin" | "ui_theme" | "lesson_backdrop";
+
+const TABS: Array<{
+  id: Tab;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: "mascot_skin", label: "聪聪皮肤", Icon: Panda },
+  { id: "ui_theme", label: "界面主题", Icon: Palette },
+  { id: "lesson_backdrop", label: "课堂背景", Icon: Picture },
+];
+
+const CATALOGS: Record<Tab, CosmeticItem[]> = {
+  mascot_skin: MASCOT_SKINS,
+  ui_theme: UI_THEMES,
+  lesson_backdrop: LESSON_BACKDROPS,
+};
+
+export default function ShopPage() {
+  const [tab, setTab] = useState<Tab>("mascot_skin");
+  const [hoverItemId, setHoverItemId] = useState<string | null>(null);
+  const [unlockBurstId, setUnlockBurstId] = useState<string | null>(null);
+  const toast = useToast();
+
+  const gems = useProgressStore(s => s.gems);
+  const ownedCosmetics = useProgressStore(s => s.ownedCosmetics);
+  const equippedMascotSkin = useProgressStore(s => s.equippedMascotSkin);
+  const equippedTheme = useProgressStore(s => s.equippedTheme);
+  const equippedBackdrop = useProgressStore(s => s.equippedBackdrop);
+  const purchaseCosmetic = useProgressStore(s => s.purchaseCosmetic);
+  const equipCosmetic = useProgressStore(s => s.equipCosmetic);
+
+  const items = CATALOGS[tab];
+
+  function isEquipped(item: CosmeticItem) {
+    if (item.type === "mascot_skin") return equippedMascotSkin === item.id;
+    if (item.type === "ui_theme") return equippedTheme === item.id;
+    if (item.type === "lesson_backdrop") return equippedBackdrop === item.id;
+    return false;
+  }
+
+  function getEquippedId(t: Tab): string {
+    if (t === "mascot_skin") return equippedMascotSkin;
+    if (t === "ui_theme") return equippedTheme;
+    return equippedBackdrop;
+  }
+
+  // 当前预览的道具：hover 优先，否则当前已装备
+  const previewId = hoverItemId ?? getEquippedId(tab);
+  const previewItem = useMemo(
+    () => items.find(i => i.id === previewId) ?? items[0],
+    [items, previewId],
+  );
+
+  function handleClick(item: CosmeticItem) {
+    playSfx("tap");
+    haptic("light");
+    const owned = !!ownedCosmetics[item.id];
+    if (owned) {
+      const ok = equipCosmetic(item.id);
+      if (ok) {
+        playSfx("star");
+        haptic("success");
+        toast.success(`已装备：${item.name}`);
+      }
+    } else {
+      const result = purchaseCosmetic(item.id);
+      if (result.ok) {
+        playSfx("unlock");
+        haptic("success");
+        toast.success(`解锁成功：${item.name}`);
+        setUnlockBurstId(item.id);
+        window.setTimeout(() => setUnlockBurstId(null), 1400);
+      } else {
+        playSfx("wrong");
+        haptic("heavy");
+        toast.error(result.reason ?? "购买失败");
+      }
+    }
+  }
+
+  return (
+    <AppShell centerMaxWidth={920}>
+    <main className="min-h-screen bg-bg-soft lg:bg-transparent">
+      {/* Header —— 仅移动端：白底 sticky（lg+ 宝石数由右栏 RightRail HUD 常驻展示） */}
+      <div className="bg-white border-b border-bg-softer sticky top-0 z-10 lg:hidden">
+        <div className="max-w-3xl mx-auto px-4 py-2.5 lg:px-0 flex items-center gap-3">
+          {/* <a> 硬跳转：静态导出 + 安卓 WebView 下 Next <Link> 软导航偶发 404 */}
+          <a
+            href="/"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full text-ink-light hover:text-primary hover:bg-bg-soft transition-colors shrink-0 lg:hidden"
+            onClick={() => playSfx("tap")}
+            aria-label="返回首页"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </a>
+          <div className="flex-1 min-w-0 lg:hidden">
+            <div className="text-base font-extrabold text-ink leading-tight">商店</div>
+          </div>
+          <div className="hidden lg:block flex-1" />
+          <GemBadge />
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 py-4 lg:py-2 lg:px-0">
+        {/* ⚡ 红心 & 连胜 —— 功能性道具（护盾 / 补心），与纯美妆分区 */}
+        <PowerUpsSection />
+
+        {/* Tab 切换 —— 移动端 3 列等宽不溢出 / 桌面端横向 chip */}
+        <div className="grid grid-cols-3 gap-2 mb-4 lg:flex lg:gap-2 lg:mb-6">
+          {TABS.map(t => {
+            const active = tab === t.id;
+            const Icon = t.Icon;
+            const ownedInTab = CATALOGS[t.id].filter(
+              c => ownedCosmetics[c.id],
+            ).length;
+            const totalInTab = CATALOGS[t.id].length;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  playSfx("tap");
+                  haptic("light");
+                  setTab(t.id);
+                  setHoverItemId(null);
+                }}
+                className={`min-w-0 inline-flex items-center justify-center gap-1 lg:gap-2 px-2 lg:px-4 h-10 lg:h-11 rounded-xl lg:rounded-2xl font-extrabold border-2 transition-all ${
+                  active
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-ink-light border-bg-softer hover:border-primary/40"
+                }`}
+                style={
+                  active
+                    ? { boxShadow: "0 4px 0 0 #58A700" }
+                    : { boxShadow: "0 2px 0 0 var(--shadow-card-color)" }
+                }
+              >
+                <Icon className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                <span className="text-[12px] lg:text-sm truncate">{t.label}</span>
+                <span
+                  className={`text-[9px] lg:text-[10px] tabular-nums px-1 lg:px-1.5 py-0.5 rounded-full shrink-0 ${
+                    active ? "bg-white/25 text-white" : "bg-bg-soft text-ink-softer"
+                  }`}
+                >
+                  {ownedInTab}/{totalInTab}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 2 列：左大预览 + 右网格 */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-4 lg:items-start">
+          {/* 大预览面板 */}
+          <div className="mb-6 lg:mb-0 lg:sticky lg:top-24 relative">
+            <PreviewPane
+              item={previewItem}
+              isHoverPreview={hoverItemId !== null && hoverItemId !== getEquippedId(tab)}
+              onTryEquip={() => {
+                if (previewItem) handleClick(previewItem);
+              }}
+              owned={previewItem ? !!ownedCosmetics[previewItem.id] : false}
+              equipped={previewItem ? isEquipped(previewItem) : false}
+              canAfford={previewItem ? gems >= previewItem.cost : false}
+              gems={gems}
+            />
+            <UnlockBurst active={!!previewItem && unlockBurstId === previewItem.id} />
+          </div>
+
+          {/* 右侧网格 */}
+          <div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {items.map(item => {
+                const owned = !!ownedCosmetics[item.id];
+                const equipped = isEquipped(item);
+                const canAfford = gems >= item.cost;
+                return (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    owned={owned}
+                    equipped={equipped}
+                    canAfford={canAfford}
+                    isHovered={hoverItemId === item.id}
+                    onMouseEnter={() => setHoverItemId(item.id)}
+                    onMouseLeave={() => setHoverItemId(null)}
+                    onClick={() => handleClick(item)}
+                  />
+                );
+              })}
+            </div>
+
+            {/* 底部说明 */}
+            <p className="text-center text-xs text-ink-softer mt-8 max-w-md mx-auto inline-flex items-start gap-1.5">
+              <Gem className="w-3 h-3 text-secondary mt-0.5 shrink-0" />
+              <span>
+                宝石全部通过学习获得：通关 +3 / 二星 +5 / 三星 +10 / 首次完美 +15 / 每日目标 +20 /
+                连胜里程碑 +30~800 / 路径宝箱 +10~50 / 每日登录签到 / 解锁成就 / 联赛周榜名次与晋级奖励。
+                无任何充值。
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    </AppShell>
+  );
+}
+
+// ============================================================
+// ⚡ 红心 & 连胜 —— 连胜护盾 / 补满红心（功能性，非美妆）
+// ============================================================
+function PowerUpsSection() {
+  const toast = useToast();
+  const gems = useProgressStore(s => s.gems);
+  const freezes = useProgressStore(s => s.streakFreezes);
+  const hearts = useProgressStore(s => s.hearts);
+  const buyStreakFreeze = useProgressStore(s => s.buyStreakFreeze);
+  const buyHeartRefill = useProgressStore(s => s.buyHeartRefill);
+
+  const freezesFull = freezes >= MAX_FREEZES;
+  const heartsFull = hearts >= MAX_HEARTS;
+
+  function handleBuyFreeze() {
+    playSfx("tap");
+    haptic("light");
+    if (freezesFull) return;
+    if (buyStreakFreeze()) {
+      playSfx("unlock");
+      haptic("success");
+      toast.success("🛡️ 连胜护盾 +1！漏学一天也不怕啦");
+    } else {
+      playSfx("wrong");
+      toast.error("宝石不够，先去学习攒宝石吧");
+    }
+  }
+
+  function handleBuyRefill() {
+    playSfx("tap");
+    haptic("light");
+    if (heartsFull) return;
+    if (buyHeartRefill()) {
+      playSfx("unlock");
+      haptic("success");
+      toast.success("❤️ 红心已补满！");
+    } else {
+      playSfx("wrong");
+      toast.error("宝石不够，先去学习攒宝石吧");
+    }
+  }
+
+  return (
+    <section aria-label="红心 & 连胜" className="mb-5">
+      <div className="text-sm font-extrabold text-ink mb-2">红心 &amp; 连胜</div>
+      <div className="grid grid-cols-2 gap-3">
+        {/* 连胜护盾 */}
+        <PowerUpCard
+          icon={<Snowflake className="w-8 h-8" />}
+          iconColor="#1CB0F6"
+          title="连胜护盾"
+          desc={`漏学一天自动抵挡，保住连胜；每周一学习即可补 1 个（上限 ${MAX_FREEZES}）· 持有 ${Math.min(freezes, MAX_FREEZES)}/${MAX_FREEZES}`}
+          cost={FREEZE_COST}
+          disabled={freezesFull}
+          disabledLabel="已满 2/2"
+          canAfford={gems >= FREEZE_COST}
+          onBuy={handleBuyFreeze}
+        />
+        {/* 补满红心 */}
+        <PowerUpCard
+          icon={<Heart className="w-8 h-8" />}
+          iconColor="#FF4B4B"
+          title="补满红心"
+          desc={`立刻回满 ${MAX_HEARTS} 颗红心，继续闯关`}
+          cost={HEART_REFILL_COST}
+          disabled={heartsFull}
+          disabledLabel="红心已满"
+          canAfford={gems >= HEART_REFILL_COST}
+          onBuy={handleBuyRefill}
+        />
+      </div>
+    </section>
+  );
+}
+
+function PowerUpCard({
+  icon,
+  iconColor,
+  title,
+  desc,
+  cost,
+  disabled,
+  disabledLabel,
+  canAfford,
+  onBuy,
+}: {
+  icon: React.ReactNode;
+  iconColor: string;
+  title: string;
+  desc: string;
+  cost: number;
+  disabled: boolean;
+  disabledLabel: string;
+  canAfford: boolean;
+  onBuy: () => void;
+}) {
+  return (
+    <div
+      className="bg-white rounded-2xl border-2 border-bg-softer p-4 flex flex-col"
+      style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ background: `${iconColor}1a`, color: iconColor }}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-extrabold text-ink leading-tight">{title}</div>
+          <div className="text-[11px] text-ink-light leading-snug mt-0.5">{desc}</div>
+        </div>
+      </div>
+      {disabled ? (
+        <div className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-2xl py-2 font-extrabold text-sm bg-bg-softer text-ink-softer cursor-not-allowed">
+          <Check className="w-4 h-4" strokeWidth={3} />
+          <span>{disabledLabel}</span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onBuy}
+          disabled={!canAfford}
+          className={`mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-2xl py-2 font-extrabold text-sm transition-colors ${
+            canAfford ? "text-white" : "bg-bg-softer text-ink-softer cursor-not-allowed"
+          }`}
+          style={
+            canAfford
+              ? {
+                  background: "linear-gradient(135deg, #1CB0F6, #1899D6)",
+                  boxShadow: "0 4px 0 0 #0d7aa8",
+                }
+              : undefined
+          }
+        >
+          <Gem className="w-4 h-4" />
+          <span className="tabular-nums">{cost}</span>
+          <span>{canAfford ? "购买" : "宝石不够"}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// 大预览面板（左 / 顶）
+// ============================================================
+function PreviewPane({
+  item,
+  isHoverPreview,
+  owned,
+  equipped,
+  canAfford,
+  gems,
+  onTryEquip,
+}: {
+  item: CosmeticItem | undefined;
+  isHoverPreview: boolean;
+  owned: boolean;
+  equipped: boolean;
+  canAfford: boolean;
+  /** 当前宝石数（响应式订阅自父组件，「还差 N」随之实时更新） */
+  gems: number;
+  onTryEquip: () => void;
+}) {
+  if (!item) return null;
+  const rarityColor = RARITY_COLORS[item.rarity];
+
+  return (
+    <motion.div
+      layout
+      className="bg-white rounded-3xl border-2 border-bg-softer overflow-hidden"
+      style={{ boxShadow: "0 5px 0 0 var(--shadow-card-color)" }}
+    >
+      {/* 预览舞台 */}
+      <PreviewStage item={item} />
+
+      {/* 信息条 */}
+      <div className="px-5 py-4">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h2 className="text-xl font-extrabold text-ink leading-tight flex-1">
+            {item.name}
+          </h2>
+          <span
+            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-extrabold border-2 shrink-0"
+            style={{ color: rarityColor, borderColor: rarityColor }}
+          >
+            {RARITY_LABELS[item.rarity]}
+          </span>
+        </div>
+        <p className="text-sm text-ink-light leading-relaxed">{item.description}</p>
+
+        {/* 状态 / 行动按钮 */}
+        <div className="mt-4">
+          {equipped ? (
+            <div className="btn-chunky bg-bg-softer text-ink-light cursor-default w-full">
+              <Check className="w-4 h-4 mr-1.5" strokeWidth={3} />
+              已装备
+            </div>
+          ) : owned ? (
+            <button
+              type="button"
+              onClick={onTryEquip}
+              className="btn-chunky-primary w-full"
+            >
+              <Check className="w-4 h-4 mr-1.5" strokeWidth={3} />
+              立即装备
+            </button>
+          ) : canAfford ? (
+            <button
+              type="button"
+              onClick={onTryEquip}
+              className="btn-chunky w-full text-white"
+              style={{
+                background: "linear-gradient(135deg, #1CB0F6, #1899D6)",
+                boxShadow: "0 5px 0 0 #0d7aa8",
+              }}
+            >
+              <Gem className="w-4 h-4 mr-1.5" />
+              <span className="tabular-nums">{item.cost}</span>
+              <span className="ml-1.5">解锁</span>
+            </button>
+          ) : (
+            <div className="btn-chunky bg-bg-softer text-ink-softer cursor-not-allowed w-full">
+              <Lock className="w-4 h-4 mr-1.5" />
+              <span className="tabular-nums">{item.cost}</span>
+              <span className="ml-1.5">还差 {item.cost - gems}</span>
+            </div>
+          )}
+          {isHoverPreview && (
+            <div className="mt-2 text-center text-[11px] text-ink-softer">
+              试穿中 · 移开鼠标恢复当前装备
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================================
+// 预览舞台 —— 根据道具类型渲染不同的全屏式预览
+// ============================================================
+function PreviewStage({ item }: { item: CosmeticItem }) {
+  if (item.type === "mascot_skin") {
+    return (
+      <div
+        className="relative h-64 flex items-center justify-center"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, #ECFDF5 0%, #F7F7F7 70%)",
+        }}
+      >
+        <motion.div
+          key={item.id}
+          initial={{ scale: 0.8, opacity: 0, y: 8 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: "spring", damping: 16, stiffness: 220 }}
+        >
+          <Mascot size={180} skinOverride={item.id} mood="happy" />
+        </motion.div>
+      </div>
+    );
+  }
+  if (item.type === "ui_theme") {
+    const theme = item as UiTheme;
+    const t = theme.data;
+    return (
+      <div
+        className="relative h-64 px-5 py-5 flex flex-col gap-3"
+        style={{ background: t.bg }}
+      >
+        {/* 模拟一个题区卡片 */}
+        <div className="bg-white rounded-2xl border-2 border-bg-softer p-3 flex items-center gap-2 shadow-sm">
+          <div
+            className="w-8 h-8 rounded-full"
+            style={{ background: t.primary }}
+          />
+          <div className="flex-1">
+            <div className="h-2.5 rounded-full bg-bg-softer w-3/4 mb-1.5" />
+            <div className="h-2 rounded-full bg-bg-softer w-1/2" />
+          </div>
+        </div>
+        {/* 模拟一个 chunky 主按钮 */}
+        <div
+          className="rounded-2xl py-3 text-center text-white font-extrabold text-sm"
+          style={{
+            background: t.primary,
+            boxShadow: `0 4px 0 0 ${t.primaryDark}`,
+          }}
+        >
+          检查
+        </div>
+        {/* 调色板色块 */}
+        <div className="flex gap-2 mt-auto">
+          <ColorChip color={t.primary} label="主色" />
+          <ColorChip color={t.primaryDark} label="深色" />
+          <ColorChip color={t.accent} label="点缀" />
+        </div>
+      </div>
+    );
+  }
+  if (item.type === "lesson_backdrop") {
+    const bd = item as LessonBackdrop;
+    return (
+      <div
+        className="relative h-64 flex items-center justify-center"
+        style={{ background: bd.data.background }}
+      >
+        {/* 半透明白罩（背景太深的暗色 backdrop 用） */}
+        {bd.data.needsOverlay && (
+          <div className="absolute inset-0 bg-white/40" />
+        )}
+        {/* 模拟一个题卡片漂浮其上 */}
+        <div className="relative bg-white rounded-2xl border-2 border-bg-softer p-4 mx-6 shadow-lg">
+          <div className="text-xs text-ink-softer font-extrabold uppercase tracking-wider mb-1">
+            示意
+          </div>
+          <div className="text-sm font-bold text-ink leading-relaxed">
+            这就是答题时背后看到的氛围
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ============================================================
+// 解锁爆裂动画 —— 在预览面板上短暂展示星星 + 闪光
+// ============================================================
+function UnlockBurst({ active }: { active: boolean }) {
+  return (
+    <AnimatePresence>
+      {active && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          aria-hidden="true"
+        >
+          {/* 中心圆环 */}
+          <motion.div
+            initial={{ scale: 0, opacity: 0.8 }}
+            animate={{ scale: 4, opacity: 0 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            className="absolute w-20 h-20 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(28,176,246,0.55), transparent 70%)",
+            }}
+          />
+          {/* 8 颗散开的星星 */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const angle = (i / 8) * Math.PI * 2;
+            const dist = 110;
+            return (
+              <motion.div
+                key={i}
+                initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
+                animate={{
+                  x: Math.cos(angle) * dist,
+                  y: Math.sin(angle) * dist,
+                  opacity: [0, 1, 0],
+                  scale: [0.4, 1.2, 0.8],
+                  rotate: 360,
+                }}
+                transition={{ duration: 0.95, ease: "easeOut" }}
+                className="absolute text-secondary"
+              >
+                <Sparkle className="w-5 h-5" />
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function ColorChip({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className="w-9 h-9 rounded-xl border-2 border-white"
+        style={{ background: color, boxShadow: "0 2px 6px rgba(0,0,0,0.12)" }}
+      />
+      <div className="text-[9px] text-ink-softer font-extrabold uppercase tracking-wider">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 右侧道具卡片
+// ============================================================
+function ItemCard({
+  item,
+  owned,
+  equipped,
+  canAfford,
+  isHovered,
+  onMouseEnter,
+  onMouseLeave,
+  onClick,
+}: {
+  item: CosmeticItem;
+  owned: boolean;
+  equipped: boolean;
+  canAfford: boolean;
+  isHovered: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onClick: () => void;
+}) {
+  const rarityColor = RARITY_COLORS[item.rarity];
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.97 }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={onClick}
+      className="relative bg-white rounded-2xl border-2 overflow-hidden text-left flex flex-col"
+      style={{
+        borderColor: equipped
+          ? "#58CC02"
+          : isHovered
+            ? rarityColor
+            : "#E5E5E5",
+        boxShadow: equipped
+          ? "0 4px 0 0 #58A700"
+          : isHovered
+            ? `0 4px 0 0 ${rarityColor}`
+            : "0 3px 0 0 var(--shadow-card-color)",
+      }}
+    >
+      {/* 缩略预览 */}
+      <ItemThumb item={item} />
+
+      {/* 锁角标（未拥有 + 不够买） */}
+      {!owned && !canAfford && (
+        <div className="absolute top-2 left-2 w-7 h-7 rounded-full bg-white/90 border-2 border-bg-softer text-ink-softer flex items-center justify-center">
+          <Lock className="w-3.5 h-3.5" />
+        </div>
+      )}
+      {/* 已装备角标 */}
+      {equipped && (
+        <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shadow">
+          <Check className="w-4 h-4" strokeWidth={3} />
+        </div>
+      )}
+      {/* 稀有度小条（卡片底色） */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1"
+        style={{ background: rarityColor }}
+      />
+
+      {/* 信息 */}
+      <div className="px-3 py-2.5 flex flex-col gap-1">
+        <div className="text-[13px] font-extrabold text-ink leading-tight truncate">
+          {item.name}
+        </div>
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className="text-[9px] uppercase tracking-wider font-extrabold"
+            style={{ color: rarityColor }}
+          >
+            {RARITY_LABELS[item.rarity]}
+          </span>
+          {equipped ? (
+            <span className="text-[10px] font-extrabold text-primary-dark">
+              已装备
+            </span>
+          ) : owned ? (
+            <span className="text-[10px] font-extrabold text-secondary-dark">
+              点击装备
+            </span>
+          ) : (
+            <span
+              className={`inline-flex items-center gap-0.5 text-[10px] font-extrabold tabular-nums ${
+                canAfford ? "text-secondary-dark" : "text-ink-softer"
+              }`}
+            >
+              <Gem className="w-3 h-3" />
+              {item.cost}
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+// ============================================================
+// 缩略预览（卡片顶部）
+// ============================================================
+function ItemThumb({ item }: { item: CosmeticItem }) {
+  if (item.type === "mascot_skin") {
+    return (
+      <div
+        className="h-24 flex items-center justify-center pt-2"
+        style={{ background: "#F7F7F7" }}
+      >
+        <Mascot size={72} skinOverride={item.id} animate={false} mood="happy" />
+      </div>
+    );
+  }
+  if (item.type === "ui_theme") {
+    const t = (item as UiTheme).data;
+    return (
+      <div className="h-24 px-3 py-2 flex flex-col gap-1.5" style={{ background: t.bg }}>
+        <div className="bg-white/90 rounded-md h-3 w-3/4" />
+        <div
+          className="rounded-md h-6 mt-auto"
+          style={{
+            background: t.primary,
+            boxShadow: `0 2px 0 0 ${t.primaryDark}`,
+          }}
+        />
+      </div>
+    );
+  }
+  if (item.type === "lesson_backdrop") {
+    const bd = (item as LessonBackdrop).data;
+    return (
+      <div className="relative h-24" style={{ background: bd.background }}>
+        {bd.needsOverlay && <div className="absolute inset-0 bg-white/30" />}
+      </div>
+    );
+  }
+  return null;
+}

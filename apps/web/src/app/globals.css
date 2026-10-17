@@ -1,0 +1,318 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* KaTeX */
+@import "katex/dist/katex.min.css";
+
+:root {
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", ui-sans-serif, system-ui, sans-serif;
+
+  /* 美妆主题色（ThemeProvider 会在 hydrate 后覆盖；这是 SSR 默认值） */
+  --theme-primary: #58CC02;
+  --theme-primary-dark: #58A700;
+  --theme-accent: #1CB0F6;
+  --theme-bg: #F7F7F7;
+
+  /* 卡片厚阴影颜色 —— 深色模式下由 .theme-dark 覆盖（替代旧的 [style*=...] 字符串匹配） */
+  --shadow-card-color: #e5e5e5;
+  /* 当前路径节点光晕色 —— 随单元色由 PathMap 内联覆盖 */
+  --node-glow-color: rgba(88, 204, 2, 0.35);
+}
+
+/* ============================================================
+ * 深色 night 色板缺省值 —— 与 iOS DuoColors / tailwind night token 同 hex
+ *   免费三态深色模式（系统 / 手动）只挂 .theme-dark 类即可拿到整套 token；
+ *   购买的暗色美妆主题（theme_midnight / theme_obsidian）由 ThemeProvider
+ *   在 html 上内联同名变量覆盖 —— 「强制暗色」但底层同一套 token。
+ * ============================================================ */
+.theme-dark {
+  --app-bg: #131F24;
+  --app-bg-soft: #131F24;
+  --app-bg-softer: #37464F;
+  --app-card: #202F36;
+  --app-border: #37464F;
+  --app-ink: #F1F5F9;
+  --app-ink-light: #CBD5E1;
+  --app-ink-softer: #94A3B8;
+  --shadow-card-color: rgba(0, 0, 0, 0.4);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+  color: #4b4b4b;
+  /* 背景由 layout.tsx 的 body className="bg-bg-soft" 统一提供，
+     这里不再硬编码以免覆盖 Tailwind utility。 */
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* 英文数字用 Nunito，中文 fallback 到 PingFang；display 类用于标题和按钮 */
+.font-display,
+h1,
+h2,
+h3,
+.btn-chunky,
+.display-text {
+  font-family: var(--font-display), "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* 多邻国式按钮：底部硬阴影，按下时阴影消失模拟"按下去" */
+.btn-chunky {
+  @apply relative inline-flex items-center justify-center font-extrabold text-white;
+  @apply px-6 rounded-2xl select-none cursor-pointer;
+  @apply active:translate-y-[3px] active:shadow-none active:scale-[0.99];
+  /* 固定按钮高度，避免不同语种 / 不同字号下高度漂移；与 btn-chunky-ghost 对齐 */
+  min-height: 50px;
+  padding-top: 0;
+  padding-bottom: 0;
+  letter-spacing: 0.01em;
+  transition: transform 120ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    box-shadow 120ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    filter 150ms ease;
+}
+
+/* 副按钮：白底厚边 + 灰色厚阴影。和 btn-chunky 同高度同圆角，用于"上一步 / 取消"等次要动作 */
+.btn-chunky-ghost {
+  @apply relative inline-flex items-center justify-center font-extrabold text-ink-light bg-white;
+  @apply px-6 rounded-2xl select-none cursor-pointer border-2 border-bg-softer;
+  @apply active:translate-y-[3px] active:shadow-none active:scale-[0.99];
+  min-height: 50px;
+  padding-top: 0;
+  padding-bottom: 0;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 0 0 var(--shadow-card-color);
+  transition: transform 120ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    box-shadow 120ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    color 150ms ease;
+}
+.btn-chunky-ghost:hover {
+  color: #4b4b4b;
+}
+.btn-chunky:hover {
+  filter: brightness(1.06);
+}
+
+.btn-chunky-primary {
+  @apply btn-chunky bg-primary shadow-chunky-primary;
+}
+
+.btn-chunky-secondary {
+  @apply btn-chunky bg-secondary shadow-chunky-secondary;
+}
+
+.btn-chunky-danger {
+  @apply btn-chunky bg-danger shadow-chunky-danger;
+}
+
+.btn-chunky-disabled {
+  @apply btn-chunky bg-bg-softer text-ink-softer shadow-chunky cursor-not-allowed;
+  @apply active:translate-y-0 active:scale-100;
+}
+.btn-chunky-disabled:hover {
+  filter: none;
+}
+
+/* 小尺寸 chunky 按钮 —— 用于行内次要操作（错题"我会了/还要练"等） */
+.btn-chunky-sm {
+  @apply relative inline-flex items-center justify-center gap-1 font-extrabold text-white;
+  @apply px-3 rounded-xl select-none cursor-pointer text-xs;
+  @apply active:translate-y-[2px] active:shadow-none;
+  min-height: 36px;
+  letter-spacing: 0.01em;
+  transition: transform 100ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    box-shadow 100ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    filter 150ms ease;
+}
+.btn-chunky-sm:hover {
+  filter: brightness(1.06);
+}
+
+/* Duolingo 风格的厚底纯色卡片 —— 用于学科/课程/技能气泡
+ * 背景色和底部阴影颜色需要在内联 style 上传入（不同学科不同色），
+ * 这个类只负责过渡曲线和 hover/active 行为。
+ */
+.duo-chunky-card {
+  transition: transform 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    box-shadow 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    filter 150ms ease;
+}
+.duo-chunky-card:hover {
+  filter: brightness(1.06);
+}
+.duo-chunky-card:active {
+  transform: translateY(4px);
+  box-shadow: none !important;
+}
+
+/* 选项卡（多邻国题目选项通用基底）
+ * 规范：min-h 56px、px-4 py-3、border-2、rounded-2xl、text-base font-extrabold
+ * 用于 ChoiceQuestion / TrueFalseQuestion / MatchingQuestion / WordOrderQuestion 等所有题型选项
+ */
+.option-card {
+  @apply relative border-2 border-bg-softer rounded-2xl cursor-pointer overflow-hidden;
+  @apply text-base text-ink font-extrabold select-none;
+  @apply hover:border-secondary hover:bg-secondary/5;
+  min-height: 56px;
+  padding: 12px 16px;
+  box-shadow: 0 3px 0 0 var(--shadow-card-color);
+  transition: transform 140ms cubic-bezier(0.2, 0.9, 0.3, 1.2), border-color 140ms ease,
+    box-shadow 140ms ease, background-color 140ms ease;
+}
+.option-card:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 0 var(--shadow-card-color);
+}
+
+.option-card-selected {
+  @apply border-secondary bg-secondary/10 text-secondary-dark;
+  box-shadow: 0 3px 0 0 #1899d6;
+}
+
+.option-card-correct {
+  @apply border-primary bg-primary/20 text-primary-dark;
+  box-shadow: 0 3px 0 0 #58a700, 0 0 0 6px rgba(88, 204, 2, 0.2);
+}
+
+.option-card-wrong {
+  @apply border-danger bg-danger/15 text-danger-dark;
+  box-shadow: 0 3px 0 0 #ea2b2b, 0 0 0 6px rgba(255, 75, 75, 0.18);
+}
+
+/* ripple 元素 */
+.ripple-dot {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.35;
+  transform: scale(0);
+  animation: ripple 0.55s ease-out forwards;
+}
+
+/* 当前路径节点的光晕 —— 颜色随单元色（--node-glow-color 由节点内联覆盖） */
+.path-node-current::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--node-glow-color), transparent 70%);
+  animation: glowPulse 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* 可访问性：尊重系统"减少动画" */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+ * 可访问性：键盘焦点环
+ * 仅在键盘导航 (:focus-visible) 时显示，鼠标点击不打扰
+ * 用项目主色 + 双层 outline 模拟"硬 outline"
+ * ============================================================ */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 3px solid #1CB0F6;
+  outline-offset: 3px;
+  border-radius: 6px;
+  transition: outline-offset 80ms ease;
+}
+.btn-chunky:focus-visible,
+.btn-chunky-ghost:focus-visible,
+.btn-chunky-sm:focus-visible {
+  outline-offset: 4px;
+}
+/* 链接 / 卡片自身已有圆角时 outline 跟随 */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid #1CB0F6;
+  outline-offset: 3px;
+}
+
+/* sr-only：屏幕阅读器可见但视觉隐藏（aria-live 兜底等） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================================
+ * 暗色主题：.theme-dark 挂在 <html> 上（首屏内联脚本预挂，防白闪），
+ * 通过选择器重映射常用 Tailwind 工具类。
+ * 仅覆盖最常用的背景 / 边框 / 文本 token，保持设计语言一致；
+ * 主色（primary / secondary / danger）依然使用 Duolingo 原色，避免品牌漂移。
+ * ============================================================ */
+.theme-dark body {
+  background-color: var(--app-bg) !important;
+  color: var(--app-ink);
+}
+.theme-dark .bg-white,
+.theme-dark .bg-bg {
+  background-color: var(--app-card) !important;
+}
+.theme-dark .bg-white\/90 {
+  background-color: color-mix(in srgb, var(--app-card) 90%, transparent) !important;
+}
+.theme-dark .bg-bg-soft {
+  background-color: var(--app-bg-soft) !important;
+}
+.theme-dark .bg-bg-softer {
+  background-color: var(--app-bg-softer) !important;
+}
+.theme-dark .border-bg-softer {
+  border-color: var(--app-border) !important;
+}
+.theme-dark .border-bg {
+  border-color: var(--app-border) !important;
+}
+.theme-dark .text-ink {
+  color: var(--app-ink) !important;
+}
+.theme-dark .text-ink-light {
+  color: var(--app-ink-light) !important;
+}
+.theme-dark .text-ink-softer {
+  color: var(--app-ink-softer) !important;
+}
+/* option-card 默认底色阴影（厚阴影颜色统一走 --shadow-card-color 变量） */
+.theme-dark .option-card {
+  background-color: var(--app-card);
+  border-color: var(--app-border);
+  color: var(--app-ink);
+}
+.theme-dark .btn-chunky-ghost {
+  background-color: var(--app-card);
+  color: var(--app-ink-light);
+  border-color: var(--app-border);
+}
+.theme-dark .btn-chunky-disabled {
+  background-color: var(--app-bg-softer);
+  color: var(--app-ink-softer);
+}

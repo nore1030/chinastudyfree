@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- maskable 版：满铺绿底，熊猫缩到中心 76%（安全区内） -->
+  <rect x="0" y="0" width="120" height="120" fill="#58CC02"/>
+  <g transform="translate(60 60) scale(0.76) translate(-60 -60)">
+    <circle cx="36" cy="34" r="12" fill="#2E2E2E"/>
+    <circle cx="84" cy="34" r="12" fill="#2E2E2E"/>
+    <ellipse cx="60" cy="62" rx="37" ry="34" fill="#FBFBFB"/>
+    <ellipse cx="45" cy="58" rx="11" ry="14" fill="#2E2E2E"/>
+    <ellipse cx="75" cy="58" rx="11" ry="14" fill="#2E2E2E"/>
+    <circle cx="46" cy="56" r="7.5" fill="#FBFBFB"/>
+    <circle cx="74" cy="56" r="7.5" fill="#FBFBFB"/>
+    <circle cx="45" cy="56" r="4.4" fill="#3A3A3A"/>
+    <circle cx="75" cy="56" r="4.4" fill="#3A3A3A"/>
+    <circle cx="46.4" cy="54.6" r="1.4" fill="#FFFFFF"/>
+    <circle cx="76.4" cy="54.6" r="1.4" fill="#FFFFFF"/>
+    <path d="M 54 68 Q 60 66 66 68 Q 66 74 60 76 Q 54 74 54 68 Z" fill="#2E2E2E"/>
+    <path d="M 60 76 L 60 80 Q 64 84 68 82 M 60 80 Q 56 84 52 82" fill="none" stroke="#2E2E2E" stroke-width="2.2" stroke-linecap="round"/>
+  </g>
+</svg>

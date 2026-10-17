@@ -1,0 +1,29 @@
+# 自托管 ChinaStudyFree（Web + 在线 AI 一体容器）
+# 用法：
+#   cd docker
+#   cp ../.env.example .env   # 填入 LLM/TTS Key（可选）
+#   docker compose up -d --build
+# 访问 http://localhost:8787
+#
+# 移动端(Capacitor) 把 NEXT_PUBLIC_AI_BASE 指向本服务的公网地址即可复用在线 AI。
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: china-study-free:latest
+    ports:
+      - "8787:8787"
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      TTS_VOICE: ${TTS_VOICE:-longxiaochun}
+      TTS_MODEL: ${TTS_MODEL:-cosyvoice-v1}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      STATIC_DIR: /app/apps/web/out
+      PORT: "8787"
+    restart: unless-stopped

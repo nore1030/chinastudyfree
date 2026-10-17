@@ -1,0 +1,25 @@
+{
+  "name": "china-study-free-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "在线 AI 后端：托管 Next.js 静态产物(out/) 并提供 /api/ai/* 出题/讲解/故事/TTS 接口。供 Web、Docker、桌面(Tauri) 同源使用；移动端(Capacitor)通过 NEXT_PUBLIC_AI_BASE 指向自托管地址。",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "node build.mjs",
+    "build:tsc": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.7",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

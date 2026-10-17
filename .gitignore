@@ -1,0 +1,45 @@
+# 依赖
+node_modules/
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+apps/web/public/audio/
+apps/web/public/story-images/
+apps/web/public/textbook-pages/
+apps/web/public/data/
+data/
+
+# Server build
+apps/server/dist/
+
+# 环境变量
+.env
+.env.local
+*.local
+
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Capacitor 生成产物（由 cap add/sync 生成）
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/node_modules/
+apps/mobile/.gradle/
+
+# 上游参考仓库（不参与本工程）
+upstream/
+
+# 构建产物 / 分发包 / 大文件（不进仓库）
+release/
+offline-bundle/
+tools/
+.workbuddy/
+
+# 内嵌 Node 侧车（84MB，另行放置；package-desktop.sh 从此目录复制）
+apps/desktop/src-tauri/bin/
+
+# 系统
+.DS_Store
+Thumbs.db

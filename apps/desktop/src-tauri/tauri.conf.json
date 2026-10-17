@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "聪聪学堂",
+  "version": "0.1.0",
+  "identifier": "com.chinastudyfree.desktop",
+  "build": {
+    "frontendDist": "../../web/out",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev:web",
+    "beforeBuildCommand": "echo skip-web-rebuild"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "聪聪学堂",
+        "width": 1100,
+        "height": 760,
+        "minWidth": 900,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "resources": {
+      "../../web/out/": "web/out/",
+      "../../server/dist/": "server/dist/",
+      "../../server/package.json": "server/package.json",
+      "../../server/.env.example": ".env.example",
+      "bin/": "bin/"
+    },
+    "shortDescription": "免费公益的 AI 学习平台 · 小学到大学",
+    "longDescription": "聪聪学堂（ChinaStudyFree）：免费、公益、开源的 AI 学习平台。覆盖小学 / 初中 / 高中 / 大学四个学段共 12 个学科、94 本教材（含人教版 / 沪教版 / 北师大版 / 苏教版 / 外研版 / 译林版 / 浙教版等多出版社版本，各版本互动课程内容不同）、2594 节互动课程；内置课文听读、课外故事、错题回顾、教材中心与本地 AI 出题/讲解能力，可离线使用。",
+    "copyright": "开源公益项目 · 基于 caiyanqi/ChinaStudyFree",
+    "category": "Education",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false,
+        "installMode": "both",
+        "installerIcon": "icons/icon.ico",
+        "startMenuFolder": "聪聪学堂"
+      },
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
+  }
+}

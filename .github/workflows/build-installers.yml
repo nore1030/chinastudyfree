@@ -1,0 +1,232 @@
+name: 构建各平台安装包
+
+# 用途：在 GitHub Actions 上产出本机无法构建的安装包
+#   - iOS 未签名 IPA（需 macOS + Xcode，Windows 无法归档）
+#   - Linux 桌面版 AppImage / deb（需 Linux 工具链）
+#   - Docker 镜像 tar（本机无 Docker 守护进程）
+#   - 同时可复现 Windows 安装包（NSIS/MSI）与安卓 APK/AAB
+#
+# 触发：手动（workflow_dispatch）或推送 tag（v*）
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # ───────────────────────── 数据与静态站（各 Job 共用的前置产物）─────────────────────────
+  web:
+    name: Web 静态站 + 前端数据
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: 生成前端数据（output/ → public/data）
+        run: npm run build:data
+      - name: 抓取教材目录（ChinaTextbook）
+        run: npm run sync:textbooks
+        continue-on-error: true
+      - name: 构建静态站
+        run: npm run build:web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out
+          retention-days: 7
+
+  # ───────────────────────── Windows 桌面安装包（NSIS + MSI）─────────────────────────
+  desktop-windows:
+    name: Windows 安装包（NSIS/MSI）
+    needs: web
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out
+      - run: npm ci --ignore-scripts
+      - run: npm run build:data
+      - name: 编译 AI 后端
+        run: npm run build:server
+      - name: 内置 Node 运行时（供本地 AI 服务）
+        shell: bash
+        run: |
+          mkdir -p apps/desktop/src-tauri/bin
+          cp "$(which node)" apps/desktop/src-tauri/bin/node.exe
+      - name: 构建桌面版 + 安装包
+        working-directory: apps/desktop
+        run: npx tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+          retention-days: 30
+
+  # ───────────────────────── Linux 桌面安装包（AppImage / deb）─────────────────────────
+  desktop-linux:
+    name: Linux 安装包（AppImage/deb）
+    needs: web
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux 依赖（WebKitGTK / AppIndicator）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out
+      - run: npm ci --ignore-scripts
+      - run: npm run build:data
+      - run: npm run build:server
+      - name: 构建 Linux 桌面版
+        working-directory: apps/desktop
+        run: npx tauri build --bundles appimage,deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            apps/desktop/src-tauri/target/release/bundle/deb/*.deb
+          retention-days: 30
+
+  # ───────────────────────── 安卓（发布签名 APK + AAB）─────────────────────────
+  android:
+    name: 安卓 APK / AAB
+    needs: web
+    runs-on: ubuntu-latest
+    # 在仓库 Secrets 里配置 ANDROID_KEYSTORE_BASE64 / ANDROID_STORE_PASSWORD /
+    # ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD 即用你自己的发布密钥签名；
+    # 未配置时 Gradle 会回退到仓库内的演示密钥（见 apps/mobile/android/keystore.properties）
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out
+      - run: npm ci --ignore-scripts
+      - name: 同步 Web 资源到安卓工程
+        working-directory: apps/mobile
+        run: npx cap sync android
+      - name: 若提供签名 Secrets 则写入 keystore.properties
+        working-directory: apps/mobile/android
+        if: env.KEYSTORE_B64 != ''
+        shell: bash
+        run: |
+          mkdir -p keystore
+          echo "$KEYSTORE_B64" | base64 -d > keystore/chinastudyfree-release.jks
+          cat > keystore.properties <<PROPS
+          storeFile=keystore/chinastudyfree-release.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          PROPS
+      - name: 构建 APK + AAB
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-installers
+          path: |
+            apps/mobile/android/app/build/outputs/apk/release/*.apk
+            apps/mobile/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30
+
+  # ───────────────────────── iOS（未签名 IPA）─────────────────────────
+  ios:
+    name: iOS 未签名 IPA
+    needs: web
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: apps/web/out
+      - run: npm ci --ignore-scripts
+      - name: 同步 Web 资源到 iOS 工程
+        working-directory: apps/mobile
+        run: |
+          npx cap sync ios
+          cd ios/App && pod install --repo-update || true
+      - name: 归档（不签名）
+        working-directory: apps/mobile/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -sdk iphoneos -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: 打包为 IPA（Payload 结构，未签名）
+        working-directory: apps/mobile/ios/App
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry 聪聪学堂-ios-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: apps/mobile/ios/App/聪聪学堂-ios-unsigned.ipa
+          retention-days: 30
+
+  # ───────────────────────── Docker 镜像（tar 归档）─────────────────────────
+  docker:
+    name: Docker 镜像
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 构建镜像
+        run: docker build -f docker/Dockerfile -t china-study-free:latest .
+      - name: 导出镜像 tar
+        run: docker save china-study-free:latest -o china-study-free-docker.tar
+      - name: 冒烟测试
+        run: |
+          docker run -d --name cstf -p 8787:8787 china-study-free:latest
+          sleep 8
+          curl -fsS http://127.0.0.1:8787/api/health
+          docker rm -f cstf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-tar
+          path: china-study-free-docker.tar
+          retention-days: 30

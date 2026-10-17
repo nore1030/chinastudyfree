@@ -1,0 +1,20 @@
+{
+  "name": "china-study-free-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build:web": "npm run build:web",
+    "add:android": "cap add android",
+    "add:ios": "cap add ios",
+    "sync:android": "cap sync android",
+    "sync:ios": "cap sync ios",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/ios": "^6.1.0"
+  }
+}
