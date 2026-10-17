@@ -3,16 +3,16 @@
 /**
  * tts.ts — 语音播放，只用「项目自己的声音」。
  *
- * 播放优先级（两级，均由本项目源码产出，不使用操作系统 / 浏览器的系统语音）：
+ * 播放优先级（三级，前两级由本项目源码产出）：
  *   1. 预生成音频 `src`（playTTS）—— 离线、音色最好、零延迟
  *      （由 `scripts/tts/generate-audio.mjs` 调 DashScope 批量生成，
  *       build-data 按文本 sha1 注入 `public/audio/<xx>/<hash>.opus`）
  *   2. 在线合成 `/api/ai/tts`（apps/server，DashScope CosyVoice）—— 实时合成，
  *      需后端配置 DASHSCOPE_API_KEY（桌面/便携版：把 .env 放在 exe 同目录）
- *
- * 明确**不再回退浏览器内置 speechSynthesis**（系统语音）：音色不受控、
- * 各平台差异大，与产品音色不一致。预生成音频缺失且在线合成不可用时，
- * 直接静默（不影响学习流程），实际效果由「语音开关」与后端配置决定。
+ *   3. 浏览器系统语音兜底（speechSynthesis，zh-CN 优先）—— 纯静态托管
+ *      （GitHub Pages 等）且未跑预生成、无后端时，保证学习场景有声音。
+ *      音色不受控，仅作兜底；想恢复「两项目音源、无兜底」的行为，
+ *      移除 playVoice 末尾的 browserSpeak 调用即可。
  *
  * 其他约定：
  *   - 单例 HTMLAudioElement，同一时间只有一段音频在播
@@ -64,6 +64,7 @@ function stopAudio() {
  */
 export function stopTTS() {
   stopAudio();
+  stopBrowserSpeak();
 }
 
 /** playTTS 的结果：播完 / 被用户打断 / 媒体加载失败（可回退在线合成）。 */
@@ -118,6 +119,62 @@ export async function playTTS(src: string | undefined | null): Promise<void> {
 export function isPlayingTTS(src: string): boolean {
   const a = getEl();
   return !!a && currentSrc === src && !a.paused;
+}
+
+// ============================================================
+// 浏览器系统语音兜底（静态部署 / 后端未配置时的最后一级音源）
+// ============================================================
+
+let cachedVoice: SpeechSynthesisVoice | null = null;
+let voiceLookupDone = false;
+
+function pickZhVoice(): SpeechSynthesisVoice | null {
+  if (voiceLookupDone) return cachedVoice;
+  try {
+    const vs = window.speechSynthesis?.getVoices() || [];
+    if (!vs.length) return null; // 语音列表可能异步加载，先不缓存空结果
+    cachedVoice = vs.find(v => /zh[-_]CN/i.test(v.lang))
+      || vs.find(v => /^zh/i.test(v.lang))
+      || null;
+    voiceLookupDone = true;
+    return cachedVoice;
+  } catch {
+    voiceLookupDone = true;
+    return null;
+  }
+}
+
+/** 用浏览器内置语音朗读文本（zh-CN 优先）。不可用时立即 resolve。 */
+export function browserSpeak(text: string): Promise<void> {
+  return new Promise(resolve => {
+    if (isMuted() || !text.trim()) return resolve();
+    const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
+    if (!synth) return resolve();
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const v = pickZhVoice();
+      if (v) u.voice = v;
+      u.lang = v?.lang || "zh-CN";
+      u.rate = 0.95;
+      let done = false;
+      const finish = () => {
+        if (!done) { done = true; resolve(); }
+      };
+      u.onend = finish;
+      u.onerror = finish;
+      synth.speak(u);
+      setTimeout(finish, Math.min(60000, 4000 + text.length * 350));
+    } catch {
+      resolve();
+    }
+  });
+}
+
+function stopBrowserSpeak() {
+  try {
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+  } catch { /* ignore */ }
 }
 
 // ============================================================
@@ -188,5 +245,8 @@ export async function playVoice(
     } finally {
       URL.revokeObjectURL(url);
     }
+    return;
   }
+  // 静态部署 / 后端未配置：回退浏览器系统语音（zh-CN），保证学习场景有声音
+  await browserSpeak(text);
 }
