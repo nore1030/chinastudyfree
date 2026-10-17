@@ -340,7 +340,7 @@ npx cap open ios                          # 用 Xcode 打开，配置签名后 A
 
 ## 部署说明（本 fork）
 
-- Web 静态导出已部署到：https://nore1030.github.io/chinastudyfree/
-- 构建方式：`NEXT_BASE_PATH=/chinastudyfree npm run build:web`（apps/web/next.config.mjs 增加 basePath 支持），产物在 `apps/web/out/`，推送至 `gh-pages` 分支由 GitHub Pages 托管
+- Web 静态导出已部署到：https://nore1030.github.io/
+- 构建方式：`npm run build:web`（站点部署在用户站根路径；apps/web/next.config.mjs 支持 NEXT_BASE_PATH 以备子路径部署），产物在 `apps/web/out/`，推送至 nore1030.github.io 仓库 main 分支由 GitHub Pages 托管
 - iPad/iPhone：Safari 打开上述地址 → 分享 →「添加到主屏幕」
 - AI 出题/讲解等在线能力需自建 `apps/server` 后端，纯静态托管下自动降级为内置离线内容
